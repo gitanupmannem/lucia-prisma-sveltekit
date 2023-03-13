@@ -1,5 +1,5 @@
 import { prisma } from '$lib/server/prisma';
-import { fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
@@ -9,7 +9,12 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-  createArticle: async ({ request }) => {
+  createArticle: async ({ request, locals }) => {
+    const { user, session } = await locals.validateUser()
+    if (!(user && session)) {
+      throw redirect(302, '/')
+    }
+
     // get title and content from formdata
     const { title, content } = Object.fromEntries(await request.formData()) as { title: string, content: string }
 
@@ -18,7 +23,8 @@ export const actions: Actions = {
       await prisma.article.create({
         data: {
           title,
-          content
+          content,
+          userId: user.userId
         }
       })
     } catch (err) {
@@ -32,13 +38,31 @@ export const actions: Actions = {
     }
   },
 
-  deleteArticle: async ({ url }) => {
+  deleteArticle: async ({ url, locals }) => {
+    const { user, session } = await locals.validateUser()
+    if (!(user && session)) {
+      throw redirect(302, '/')
+    }
+
+    // id of the article to delete from url
     const id = url.searchParams.get('id')
     if (!id) {
       return fail(400, { message: 'Invalid request' })
     }
 
     try {
+      // get the article to delete from db
+      const article = await prisma.article.findUniqueOrThrow({
+        where: {
+          id: Number(id)
+        }
+      })
+
+      // check if article to be deleted is owned by the user
+      if (article.userId !== user.userId) {
+        throw error(403, 'Not Authorized')
+      }
+
       await prisma.article.delete({
         where: {
           id: Number(id)
