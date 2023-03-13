@@ -43,3 +43,7 @@ You can preview the production build with `npm run preview`.
 pnpm dlx prisma db push
 pnpm dlx prisma generate
 ```
+
+### Reference
+
+Youtube link: [huntabyte: SvelteKit Authentication with Lucia & Prisma](https://www.youtube.com/watch?v=UMpKaZy0Rpc)
